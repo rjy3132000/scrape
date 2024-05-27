@@ -41,6 +41,7 @@ async function scrapeHughesDataAfterLogin() {
   const browser = await puppeteer.launch({
     headless: false,
     executablePath: chromium.path,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
 
   console.log("==> Chromium Path:", chromium.path);
