@@ -1,27 +1,20 @@
 const puppeteer = require("puppeteer");
-const chromium = require("chromium");
 const { productRecordsSaveInDB } = require("../utlis/saveProductData");
 
 async function hughesLogin(username, password, page) {
   const loginUrl =
     process.env.HugheshPageURL || "https://hughesstatesville.com/login";
 
-  const timeout = 60000; // 60 seconds
-
   try {
-    await page.goto(loginUrl, { waitUntil: "domcontentloaded", timeout });
-    await page.waitForSelector('input[name="D1"]', { timeout });
+    await page.goto(loginUrl, { waitUntil: "networkidle0" });
+    await page.waitForSelector('input[name="D1"]');
     console.log("wait URL");
     await page.type('input[name="D1"]', username);
     await page.type('input[name="D2"]', password);
     await page.click('button[type="submit"]');
     console.log("submit");
-    await Promise.race([
-      page.waitForNavigation({ waitUntil: "domcontentloaded", timeout }),
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error("Navigation timeout")), timeout)
-      ),
-    ]);
+
+    await page.waitForNavigation({ waitUntil: "networkidle0" });
     console.log("Login successful");
   } catch (error) {
     console.error("Error logging in: ", error);
@@ -48,25 +41,22 @@ async function scrapeHughesDataAfterLogin() {
     "water heaters",
   ];
 
-  const browserWSEndpoint =
-    "https://production-sfo.browserless.io?token=QBR4WvysA0iieKb0bc944a3bbc9fb8ab41b012ec8a";
-  const getBrowser = async () => puppeteer.connect({ browserWSEndpoint });
-
-  const browser = await getBrowser();
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  });
   const page = await browser.newPage();
 
   const username = process.env.HugheshUserName || "mlcole@griffinbros.com";
   const password = process.env.HughesPassword || "Picc1701!";
 
-  const timeout = 60000; // 60 seconds
-
   try {
     await hughesLogin(username, password, page);
 
     const searchURL = `https://hughesstatesville.com/eclipse.ecl?PROCID=H2.DISP.MAIN&HOME=1`;
-    await page.goto(searchURL, { waitUntil: "domcontentloaded", timeout });
+    await page.goto(searchURL, { waitUntil: "networkidle0" });
 
-    await page.waitForSelector(`.form-inline.quick-search-form`, { timeout });
+    await page.waitForSelector(`.form-inline.quick-search-form`);
     let data = [];
 
     for (const term of searchInputData) {
@@ -77,11 +67,10 @@ async function scrapeHughesDataAfterLogin() {
       await page.click(
         '.form-inline.quick-search-form button[aria-label="Search"]'
       );
-      await Promise.race([
-        page.waitForNavigation({ waitUntil: "domcontentloaded", timeout }),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error("Navigation timeout")), timeout)
-        ),
+
+      await Promise.all([
+        page.waitForNavigation({ waitUntil: "networkidle0" }),
+        page.waitForSelector(".product-list-title"),
       ]);
 
       await page.evaluate(() => {
@@ -103,9 +92,7 @@ async function scrapeHughesDataAfterLogin() {
           const nextPageSelectorGoToPage = `.row.product-list-header-pages > div:last-child > nav > ul > li a[aria-label='Go to page ${i}']`;
           const nextPageSelectorNextPages = `.row.product-list-header-pages > div:last-child > nav > ul > li a[aria-label='Next Pages']`;
 
-          // Try to find the "Go to page {i}" button first
           let nextButton = await page.$(nextPageSelectorGoToPage);
-          // If not found, try to find the "Next Pages" button
           if (!nextButton) {
             nextButton = await page.$(nextPageSelectorNextPages);
           }
@@ -114,12 +101,11 @@ async function scrapeHughesDataAfterLogin() {
             console.log("Next button not found, stopping pagination.");
             break;
           }
-          await Promise.race([
-            nextButton.click(), // Click on the "Next" button
-            page.waitForNavigation({ waitUntil: "domcontentloaded", timeout }),
-            new Promise((_, reject) =>
-              setTimeout(() => reject(new Error("Navigation timeout")), timeout)
-            ),
+
+          await Promise.all([
+            nextButton.click(),
+            page.waitForNavigation({ waitUntil: "networkidle0" }),
+            page.waitForSelector(".product-list-title"),
           ]);
         }
 
@@ -185,35 +171,28 @@ async function scrapeHughesDataAfterLogin() {
           })
         );
 
-        // Construct objects for each scraped item and associate them with the current search term
         const items = titles.map((title, index) => ({
           productName: title,
           productDetails: descriptions[index] || "",
           productSku: ourParts[index] || "",
           productBrand: hughesGetFirstIndex(title),
           productPrice: prices[index] || "",
-          productStock: stocks[index] || "Not In Stock", // This should be corrected if it's actually product stock, not price
+          productStock: stocks[index] || false,
           productImageUri: productImages[index] || "",
           productCategory: term,
           productStatus: true,
           productSupplier: "hughes",
-          productStock: stocks[index],
           productManufactureRefID: prodManufactureID[index] || "Not Available",
           productType: term === "water heaters" ? "Product" : "Accessories",
         }));
 
-        // Store the items under the respective search term
         data.push(...items);
-
-        // Extract data from the current page.
         console.log(`Scraping data from page ${i}`);
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 5000));
       console.log("Scraped the Search Data for: ", term);
     }
 
-    // console.log("data.length======", data.length);
     return data;
   } catch (error) {
     console.error("Error scraping data: ", error);
@@ -225,7 +204,6 @@ async function scrapeHughesDataAfterLogin() {
 const scrapeHughesData = async (req, res) => {
   try {
     const scrapData = await scrapeHughesDataAfterLogin();
-    //const saveData = await hughesProductData.insertMany(scrapData)
     const saveData = productRecordsSaveInDB("hughes", scrapData);
     if (saveData) {
       const result = await saveData;
