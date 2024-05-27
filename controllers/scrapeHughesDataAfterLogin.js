@@ -40,11 +40,8 @@ async function scrapeHughesDataAfterLogin() {
   ];
   const browser = await puppeteer.launch({
     headless: false,
-    executablePath: chromium.path,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
   });
 
-  console.log("==> Chromium Path:", chromium.path);
   const page = await browser.newPage();
 
   const username = process.env.HugheshUserName || "mlcole@griffinbros.com";
