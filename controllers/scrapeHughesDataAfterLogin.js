@@ -6,16 +6,21 @@ async function hughesLogin(username, password, page) {
   const loginUrl =
     process.env.HugheshPageURL || "https://hughesstatesville.com/login";
 
+  const timeout = 60000; // 60 seconds
+
   try {
-    await page.goto(loginUrl);
-    await page.waitForSelector('input[name="D1"]');
+    await page.goto(loginUrl, { waitUntil: "domcontentloaded", timeout });
+    await page.waitForSelector('input[name="D1"]', { timeout });
     console.log("wait URL");
     await page.type('input[name="D1"]', username);
     await page.type('input[name="D2"]', password);
     await page.click('button[type="submit"]');
     console.log("submit");
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: "domcontentloaded" }), // Wait for the next page to load
+    await Promise.race([
+      page.waitForNavigation({ waitUntil: "domcontentloaded", timeout }),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("Navigation timeout")), timeout)
+      ),
     ]);
     console.log("Login successful");
   } catch (error) {
@@ -47,18 +52,21 @@ async function scrapeHughesDataAfterLogin() {
     "https://production-sfo.browserless.io?token=QBR4WvysA0iieKb0bc944a3bbc9fb8ab41b012ec8a";
   const getBrowser = async () => puppeteer.connect({ browserWSEndpoint });
 
-  const page = await getBrowser().then((browser) => browser.newPage());
+  const browser = await getBrowser();
+  const page = await browser.newPage();
 
   const username = process.env.HugheshUserName || "mlcole@griffinbros.com";
   const password = process.env.HughesPassword || "Picc1701!";
+
+  const timeout = 60000; // 60 seconds
 
   try {
     await hughesLogin(username, password, page);
 
     const searchURL = `https://hughesstatesville.com/eclipse.ecl?PROCID=H2.DISP.MAIN&HOME=1`;
-    await page.goto(searchURL);
+    await page.goto(searchURL, { waitUntil: "domcontentloaded", timeout });
 
-    await page.waitForSelector(`.form-inline.quick-search-form`);
+    await page.waitForSelector(`.form-inline.quick-search-form`, { timeout });
     let data = [];
 
     for (const term of searchInputData) {
@@ -69,8 +77,11 @@ async function scrapeHughesDataAfterLogin() {
       await page.click(
         '.form-inline.quick-search-form button[aria-label="Search"]'
       );
-      await Promise.all([
-        page.waitForNavigation({ waitUntil: "domcontentloaded" }), // Wait for the next page to load
+      await Promise.race([
+        page.waitForNavigation({ waitUntil: "domcontentloaded", timeout }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Navigation timeout")), timeout)
+        ),
       ]);
 
       await page.evaluate(() => {
@@ -103,9 +114,12 @@ async function scrapeHughesDataAfterLogin() {
             console.log("Next button not found, stopping pagination.");
             break;
           }
-          await Promise.all([
+          await Promise.race([
             nextButton.click(), // Click on the "Next" button
-            page.waitForNavigation({ waitUntil: "domcontentloaded" }), // Wait for the next page to load
+            page.waitForNavigation({ waitUntil: "domcontentloaded", timeout }),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error("Navigation timeout")), timeout)
+            ),
           ]);
         }
 
@@ -204,10 +218,7 @@ async function scrapeHughesDataAfterLogin() {
   } catch (error) {
     console.error("Error scraping data: ", error);
   } finally {
-    (async function () {
-      const browser = await getBrowser();
-      await browser.close();
-    })();
+    await browser.close();
   }
 }
 
