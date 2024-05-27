@@ -41,11 +41,12 @@ async function scrapeHughesDataAfterLogin() {
     "water heaters",
   ];
 
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox"],
-  });
-  const page = await browser.newPage();
+  const browserWSEndpoint =
+    "https://production-sfo.browserless.io?token=QBR4WvysA0iieKb0bc944a3bbc9fb8ab41b012ec8a";
+  const getBrowser = async () => puppeteer.connect({ browserWSEndpoint });
+
+  // const browser = await getBrowser();
+  const page = await getBrowser().then(async (browser) => browser.newPage());
 
   const username = process.env.HugheshUserName || "mlcole@griffinbros.com";
   const password = process.env.HughesPassword || "Picc1701!";
