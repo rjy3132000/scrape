@@ -1,4 +1,5 @@
 const puppeteer = require("puppeteer");
+const chromium = require("chromium");
 const { productRecordsSaveInDB } = require("../utlis/saveProductData");
 
 async function hughesLogin(username, password, page) {
@@ -37,7 +38,12 @@ async function scrapeHughesDataAfterLogin() {
     "Water heater pan",
     "water heaters",
   ];
-  const browser = await puppeteer.launch({ headless: false });
+  const browser = await puppeteer.launch({
+    headless: false,
+    executablePath: chromium.path,
+  });
+
+  console.log("==> Chromium Path:", chromium.path);
   const page = await browser.newPage();
 
   const username = process.env.HugheshUserName || "mlcole@griffinbros.com";
