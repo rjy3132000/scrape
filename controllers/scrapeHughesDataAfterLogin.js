@@ -9,10 +9,14 @@ async function hughesLogin(username, password, page) {
   try {
     await page.goto(loginUrl);
     await page.waitForSelector('input[name="D1"]');
+    console.log("wait URL");
     await page.type('input[name="D1"]', username);
     await page.type('input[name="D2"]', password);
     await page.click('button[type="submit"]');
-    await page.waitForNavigation(); // Wait for navigation to complete after clicking login button
+    console.log("submit");
+    // await Promise.all([
+    //   page.waitForNavigation({ waitUntil: "domcontentloaded" }), // Wait for the next page to load
+    // ]);
     console.log("Login successful");
   } catch (error) {
     console.error("Error logging in: ", error);
@@ -38,13 +42,12 @@ async function scrapeHughesDataAfterLogin() {
     "Water heater pan",
     "water heaters",
   ];
-  const browser = await puppeteer.launch({
-    headless: false,
-    executablePath:
-      "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-  });
 
-  const page = await browser.newPage();
+  const browserWSEndpoint =
+    "https://production-sfo.browserless.io?token=QBR4WvysA0iieKb0bc944a3bbc9fb8ab41b012ec8a";
+  const getBrowser = async () => puppeteer.connect({ browserWSEndpoint });
+
+  const page = await getBrowser().then((browser) => browser.newPage());
 
   const username = process.env.HugheshUserName || "mlcole@griffinbros.com";
   const password = process.env.HughesPassword || "Picc1701!";
@@ -66,7 +69,9 @@ async function scrapeHughesDataAfterLogin() {
       await page.click(
         '.form-inline.quick-search-form button[aria-label="Search"]'
       );
-      await page.waitForNavigation();
+      // await Promise.all([
+      //   page.waitForNavigation({ waitUntil: "domcontentloaded" }), // Wait for the next page to load
+      // ]);
 
       await page.evaluate(() => {
         document.querySelector(
@@ -99,10 +104,10 @@ async function scrapeHughesDataAfterLogin() {
             break;
           }
 
-          await Promise.all([
-            nextButton.click(), // Click on the "Next" button
-            page.waitForNavigation({ waitUntil: "domcontentloaded" }), // Wait for the next page to load
-          ]);
+          // await Promise.all([
+          //   nextButton.click(), // Click on the "Next" button
+          //   page.waitForNavigation({ waitUntil: "domcontentloaded" }), // Wait for the next page to load
+          // ]);
         }
 
         const titles = await page.evaluate(() =>
