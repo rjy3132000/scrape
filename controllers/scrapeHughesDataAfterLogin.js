@@ -14,9 +14,9 @@ async function hughesLogin(username, password, page) {
     await page.type('input[name="D2"]', password);
     await page.click('button[type="submit"]');
     console.log("submit");
-    // await Promise.all([
-    //   page.waitForNavigation({ waitUntil: "domcontentloaded" }), // Wait for the next page to load
-    // ]);
+    await Promise.all([
+      page.waitForNavigation({ waitUntil: "domcontentloaded" }), // Wait for the next page to load
+    ]);
     console.log("Login successful");
   } catch (error) {
     console.error("Error logging in: ", error);
@@ -69,9 +69,9 @@ async function scrapeHughesDataAfterLogin() {
       await page.click(
         '.form-inline.quick-search-form button[aria-label="Search"]'
       );
-      // await Promise.all([
-      //   page.waitForNavigation({ waitUntil: "domcontentloaded" }), // Wait for the next page to load
-      // ]);
+      await Promise.all([
+        page.waitForNavigation({ waitUntil: "domcontentloaded" }), // Wait for the next page to load
+      ]);
 
       await page.evaluate(() => {
         document.querySelector(
@@ -103,11 +103,10 @@ async function scrapeHughesDataAfterLogin() {
             console.log("Next button not found, stopping pagination.");
             break;
           }
-
-          // await Promise.all([
-          //   nextButton.click(), // Click on the "Next" button
-          //   page.waitForNavigation({ waitUntil: "domcontentloaded" }), // Wait for the next page to load
-          // ]);
+          await Promise.all([
+            nextButton.click(), // Click on the "Next" button
+            page.waitForNavigation({ waitUntil: "domcontentloaded" }), // Wait for the next page to load
+          ]);
         }
 
         const titles = await page.evaluate(() =>
@@ -205,7 +204,10 @@ async function scrapeHughesDataAfterLogin() {
   } catch (error) {
     console.error("Error scraping data: ", error);
   } finally {
-    await browser.close();
+    (async function () {
+      const browser = await getBrowser();
+      await browser.close();
+    })();
   }
 }
 
