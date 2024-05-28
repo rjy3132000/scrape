@@ -34,6 +34,8 @@ async function scrapeReeceCreateData(baseUrl, username, password) {
 
   // const browser = await getBrowser();
   const page = await getBrowser().then(async (browser) => browser.newPage());
+  page.setDefaultNavigationTimeout(0);
+
   try {
     // Perform login
     await reeceLogin(username, password, page);
