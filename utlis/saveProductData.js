@@ -6,12 +6,6 @@ const {
 
 async function productRecordsSaveInDB(schemaName, productArray) {
   try {
-    // Check if productArray is an array
-    if (!Array.isArray(productArray)) {
-      throw new TypeError("productArray must be an array");
-    }
-
-    // Select the appropriate schema
     const Schema = {
       hughes: hughesProductData,
       hubbard: hubbardProductData,
