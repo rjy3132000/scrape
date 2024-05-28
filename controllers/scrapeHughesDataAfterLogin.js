@@ -173,7 +173,7 @@ async function scrapeHughesDataAfterLogin() {
         );
 
         const items = titles.map((title, index) => ({
-          productName: title,
+          productName: title ? title : "",
           productDetails: descriptions[index] || "",
           productSku: ourParts[index] || "",
           productBrand: hughesGetFirstIndex(title),
