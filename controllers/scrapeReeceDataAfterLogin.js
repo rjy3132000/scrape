@@ -1,9 +1,9 @@
 const puppeteer = require("puppeteer");
-const {productRecordsSaveInDB} = require("../utlis/saveProductData")
+const { productRecordsSaveInDB } = require("../utlis/saveProductData");
 
 // Function to login
 async function reeceLogin(username, password, page) {
-  const loginUrl = process.env.ReeceloginUrl || "https://www.reece.com/login"
+  const loginUrl = process.env.ReeceloginUrl || "https://www.reece.com/login";
   try {
     await page.goto(loginUrl);
     await page.waitForSelector('input[name="email"]');
@@ -28,8 +28,12 @@ async function reeceLogin(username, password, page) {
 
 // Function to scrape search results
 async function scrapeReeceCreateData(baseUrl, username, password) {
-  const browser = await puppeteer.launch({ headless: false });
-  const page = await browser.newPage();
+  const browserWSEndpoint =
+    "https://production-sfo.browserless.io?token=QBR4WvysA0iieKb0bc944a3bbc9fb8ab41b012ec8a";
+  const getBrowser = async () => puppeteer.connect({ browserWSEndpoint });
+
+  // const browser = await getBrowser();
+  const page = await getBrowser().then(async (browser) => browser.newPage());
   try {
     // Perform login
     await reeceLogin(username, password, page);
@@ -41,7 +45,9 @@ async function scrapeReeceCreateData(baseUrl, username, password) {
     // Get the total number of pages
     const totalPages = await page.evaluate(() => {
       return parseInt(
-        document.querySelector('span[data-testid="pagination-total"]').textContent.trim(),
+        document
+          .querySelector('span[data-testid="pagination-total"]')
+          .textContent.trim(),
         10
       );
     });
@@ -53,7 +59,10 @@ async function scrapeReeceCreateData(baseUrl, username, password) {
       } catch (error) {
         console.error("Navigation timeout error:");
       }
-      await page.waitForSelector('.MuiGrid-root.MuiGrid-container.MuiGrid-spacing-xs-2.css-isbt42', { visible: true });
+      await page.waitForSelector(
+        ".MuiGrid-root.MuiGrid-container.MuiGrid-spacing-xs-2.css-isbt42",
+        { visible: true }
+      );
       // Extracting product details on the current page
       const pageData = await page.evaluate(() => {
         const products = document.querySelectorAll(
@@ -68,21 +77,19 @@ async function scrapeReeceCreateData(baseUrl, username, password) {
               )
               ?.textContent.trim() || null;
           const productStockStirng =
-            product.querySelector(`span[class="pl-1"]`)?.textContent.trim() || 0;
-          
-          let productStock = 0
-          if(productStockStirng != 0){
-            productStock = +(productStockStirng.split(" "))[0]
+            product.querySelector(`span[class="pl-1"]`)?.textContent.trim() ||
+            0;
+
+          let productStock = 0;
+          if (productStockStirng != 0) {
+            productStock = +productStockStirng.split(" ")[0];
           }
-          const priceElement =
-            product
-              .querySelector(
-                'span[class="MuiTypography-root MuiTypography-h4 css-1m2ekip"]'
-              );
-          const price =
-            priceElement?.textContent.trim() || null;
-          const priceUnit = priceElement
-            ?.nextSibling?.textContent.trim() || null;
+          const priceElement = product.querySelector(
+            'span[class="MuiTypography-root MuiTypography-h4 css-1m2ekip"]'
+          );
+          const price = priceElement?.textContent.trim() || null;
+          const priceUnit =
+            priceElement?.nextSibling?.textContent.trim() || null;
           const productPrice =
             price && priceUnit ? `${price} ${priceUnit}` : null;
           const productImageURL =
@@ -105,22 +112,22 @@ async function scrapeReeceCreateData(baseUrl, username, password) {
                 ".MuiTypography-root.MuiTypography-caption.css-hnsmw"
               )
               ?.textContent.trim() || null;
-              const productLink =
-              product
-                .querySelector(
-                  "a.MuiTypography-root.MuiTypography-inherit.MuiLink-root.MuiLink-underlineNone.css-116q2oc"
-                )
-                ?.getAttribute("href") || null;
-            let productSku = '';
-            if (productLink && productLink.includes("MSC-")) {
-              const productSKUMatch = productLink.match(
-                /\/product\/[^\/]+\/([^\/]+)/
-              );
-              if (productSKUMatch && productSKUMatch[1].startsWith("MSC-")) {
-                productSku = productSKUMatch[1].substring(4); // Extract SKU after "MSC-"
-              }
+          const productLink =
+            product
+              .querySelector(
+                "a.MuiTypography-root.MuiTypography-inherit.MuiLink-root.MuiLink-underlineNone.css-116q2oc"
+              )
+              ?.getAttribute("href") || null;
+          let productSku = "";
+          if (productLink && productLink.includes("MSC-")) {
+            const productSKUMatch = productLink.match(
+              /\/product\/[^\/]+\/([^\/]+)/
+            );
+            if (productSKUMatch && productSKUMatch[1].startsWith("MSC-")) {
+              productSku = productSKUMatch[1].substring(4); // Extract SKU after "MSC-"
             }
-  
+          }
+
           results.push({
             productName,
             productStock,
@@ -128,7 +135,7 @@ async function scrapeReeceCreateData(baseUrl, username, password) {
             productImageURL,
             productBrand,
             productDetails,
-            productManufactureRefID, 
+            productManufactureRefID,
             productSku,
           });
         });
@@ -147,7 +154,10 @@ async function scrapeReeceCreateData(baseUrl, username, password) {
         try {
           await Promise.all([
             page.click('button[data-testid="pagination-next"]'),
-            page.waitForSelector('.MuiGrid-root.MuiGrid-container.MuiGrid-spacing-xs-2.css-isbt42', { visible: true }),
+            page.waitForSelector(
+              ".MuiGrid-root.MuiGrid-container.MuiGrid-spacing-xs-2.css-isbt42",
+              { visible: true }
+            ),
           ]);
         } catch (error) {
           console.error(`Failed to navigate to page ${i + 1}:`, error);
@@ -159,17 +169,26 @@ async function scrapeReeceCreateData(baseUrl, username, password) {
     console.log("Error: ", error);
     return [];
   } finally {
-    await browser.close();
+    (async function () {
+      const browser = await getBrowser();
+      await browser.close();
+    })();
   }
 }
 
 // Example usage
 const scrapeReeceDataAfterLogin = async () => {
-  const baseUrl = process.env.ReeceBaseURL || "https://www.reece.com/search?&categories=Water%20Heaters&categories=Commercial%20-%20Electric";
+  const baseUrl =
+    process.env.ReeceBaseURL ||
+    "https://www.reece.com/search?&categories=Water%20Heaters&categories=Commercial%20-%20Electric";
   const username = process.env.ReeceUserName || "austin@callnublue.com";
   const password = process.env.ReecePassword || "BlueBuy1!";
   try {
-    const searchResults = await scrapeReeceCreateData(baseUrl, username, password);
+    const searchResults = await scrapeReeceCreateData(
+      baseUrl,
+      username,
+      password
+    );
     return searchResults;
   } catch (error) {
     console.error("Error scraping data: ", error);
@@ -177,21 +196,19 @@ const scrapeReeceDataAfterLogin = async () => {
   }
 };
 
-
-  const scrapeReeceData = async (req, res) => {
-    try {
-         const scrapData = await scrapeReeceDataAfterLogin()
-        const saveData = await productRecordsSaveInDB('reece',scrapData)
-        if (saveData) {
-            res.status(200).send(saveData);
-        } else {
-            res.status(400).send({ message: "Data is not saved" });
-        }
-    } catch (error) {
-        console.error("Error in /scrape-hughes-data route:", error);
-        res.status(500).send("Error scraping data.");
+const scrapeReeceData = async (req, res) => {
+  try {
+    const scrapData = await scrapeReeceDataAfterLogin();
+    const saveData = await productRecordsSaveInDB("reece", scrapData);
+    if (saveData) {
+      res.status(200).send(saveData);
+    } else {
+      res.status(400).send({ message: "Data is not saved" });
     }
+  } catch (error) {
+    console.error("Error in /scrape-hughes-data route:", error);
+    res.status(500).send("Error scraping data.");
+  }
 };
-  
 
-module.exports = { scrapeReeceData,scrapeReeceDataAfterLogin };
+module.exports = { scrapeReeceData, scrapeReeceDataAfterLogin };
