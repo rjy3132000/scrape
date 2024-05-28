@@ -10,14 +10,18 @@ async function reeceLogin(username, password, page) {
     await page.type('input[name="email"]', username);
     await page.type('input[name="password"]', password);
     // Wait for the login button to be visible with an increased timeout
+    await page.setDefaultNavigationTimeout(0);
     await page.waitForSelector(
       "button.login__card__sign-in__form__submit.default.primary",
       { visible: true, timeout: 60000 }
     );
     // Click the login button and wait for navigation to complete
     await Promise.all([
-      page.waitForNavigation({ waitUntil: "domcontentloaded" }),
-      page.click("button.login__card__sign-in__form__submit.default.primary"),
+      await page.setDefaultNavigationTimeout(0),
+      await page.waitForNavigation({ waitUntil: "domcontentloaded" }),
+      await page.click(
+        "button.login__card__sign-in__form__submit.default.primary"
+      ),
     ]);
     console.log("Login successful");
   } catch (error) {
@@ -34,12 +38,13 @@ async function scrapeReeceCreateData(baseUrl, username, password) {
 
   // const browser = await getBrowser();
   const page = await getBrowser().then(async (browser) => browser.newPage());
-  page.setDefaultNavigationTimeout(0);
+  await page.setDefaultNavigationTimeout(0);
 
   try {
     // Perform login
     await reeceLogin(username, password, page);
     // Wait for navigation to complete
+    await page.setDefaultNavigationTimeout(0);
     await page.waitForNavigation();
     // Navigate to the search results page
     await page.goto(baseUrl, { waitUntil: "domcontentloaded" });
