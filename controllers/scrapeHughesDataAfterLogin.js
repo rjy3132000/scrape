@@ -6,7 +6,7 @@ async function hughesLogin(username, password, page) {
     process.env.HugheshPageURL || "https://hughesstatesville.com/login";
 
   try {
-    await page.goto(loginUrl, { waitUntil: "networkidle0" });
+    await page.goto(loginUrl);
     await page.waitForSelector('input[name="D1"]');
     console.log("wait URL");
     await page.type('input[name="D1"]', username);
@@ -14,7 +14,7 @@ async function hughesLogin(username, password, page) {
     await page.click('button[type="submit"]');
     console.log("submit");
 
-    await page.waitForNavigation({ waitUntil: "networkidle0" });
+    await page.waitForNavigation();
     console.log("Login successful");
   } catch (error) {
     console.error("Error logging in: ", error);
@@ -55,7 +55,7 @@ async function scrapeHughesDataAfterLogin() {
     await hughesLogin(username, password, page);
 
     const searchURL = `https://hughesstatesville.com/eclipse.ecl?PROCID=H2.DISP.MAIN&HOME=1`;
-    await page.goto(searchURL, { waitUntil: "networkidle0" });
+    await page.goto(searchURL);
 
     await page.waitForSelector(`.form-inline.quick-search-form`);
     let data = [];
@@ -70,7 +70,7 @@ async function scrapeHughesDataAfterLogin() {
       );
 
       await Promise.all([
-        page.waitForNavigation({ waitUntil: "networkidle0" }),
+        page.waitForNavigation(),
         page.waitForSelector(".product-list-title"),
       ]);
 
@@ -105,7 +105,7 @@ async function scrapeHughesDataAfterLogin() {
 
           await Promise.all([
             nextButton.click(),
-            page.waitForNavigation({ waitUntil: "networkidle0" }),
+            page.waitForNavigation(),
             page.waitForSelector(".product-list-title"),
           ]);
         }
