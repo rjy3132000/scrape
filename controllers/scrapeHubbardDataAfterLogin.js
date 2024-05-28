@@ -9,17 +9,13 @@ async function login(email, password, page) {
   try {
     await page.goto(loginUrl, {
       waitUntil: "domcontentloaded",
-      timeout: 60000,
     });
     await page.type('input[name="email"]', email);
     await page.type('input[name="password"]', password);
     await page.click(
       'div[class="form-group  login-submit"] > button[type="submit"]'
     );
-    await page.waitForNavigation({
-      waitUntil: "domcontentloaded",
-      timeout: 60000,
-    });
+    await page.waitForNavigation({ waitUntil: "domcontentloaded" });
   } catch (error) {
     console.error("Error logging in: ", error);
     throw error;
@@ -31,10 +27,7 @@ async function logout(page) {
   const logoutUrl =
     process.env.HubbardLogoutURL || "https://www.hubbardsupplyhouse.com/logout";
   try {
-    await page.goto(logoutUrl, {
-      waitUntil: "domcontentloaded",
-      timeout: 60000,
-    });
+    await page.goto(logoutUrl, { waitUntil: "domcontentloaded" });
     console.log("Logout successful");
   } catch (error) {
     console.error("Error logging out: ", error);
@@ -135,7 +128,6 @@ async function scrapeSearchResults(page, url) {
         await nextPageButton.click();
         await page.waitForNavigation({
           waitUntil: "domcontentloaded",
-          timeout: 60000,
         });
         await new Promise((resolve) => setTimeout(resolve, 5000));
       }
@@ -153,13 +145,8 @@ function delay(time) {
 
 // Main function to scrape data and merge before saving to MongoDB
 async function scrapeHubbardDataAfterLogin() {
-  const browserWSEndpoint =
-    "https://production-sfo.browserless.io?token=QBR4WvysA0iieKb0bc944a3bbc9fb8ab41b012ec8a";
-  const getBrowser = async () => puppeteer.connect({ browserWSEndpoint });
-
-  // const browser = await getBrowser();
-  const page = await getBrowser().then(async (browser) => browser.newPage());
-
+  const browser = await puppeteer.launch({ headless: false });
+  const page = await browser.newPage();
   const email =
     process.env.HubbardEmail || "Plumbingaccounting@griffinbros.com";
   const password = process.env.HubbardPassword || "Zoomup22!";
@@ -195,7 +182,7 @@ async function scrapeHubbardDataAfterLogin() {
     console.error("Error during scraping and merging:", error);
   } finally {
     await logout(page);
-    await getBrowser().then(async (browser) => browser.close());
+    await browser.close();
   }
 }
 
