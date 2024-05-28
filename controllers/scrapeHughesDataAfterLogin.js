@@ -198,7 +198,10 @@ async function scrapeHughesDataAfterLogin() {
   } catch (error) {
     console.error("Error scraping data: ", error);
   } finally {
-    await browser.close();
+    (async function () {
+      const browser = await getBrowser();
+      await browser.close();
+    })();
   }
 }
 
