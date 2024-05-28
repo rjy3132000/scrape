@@ -16,10 +16,8 @@ async function reeceLogin(username, password, page) {
     );
     // Click the login button and wait for navigation to complete
     await Promise.all([
-      await page.waitForNavigation({ waitUntil: "domcontentloaded" }),
-      await page.click(
-        "button.login__card__sign-in__form__submit.default.primary"
-      ),
+      page.waitForNavigation({ waitUntil: "domcontentloaded" }),
+      page.click("button.login__card__sign-in__form__submit.default.primary"),
     ]);
     console.log("Login successful");
   } catch (error) {
@@ -36,7 +34,6 @@ async function scrapeReeceCreateData(baseUrl, username, password) {
 
   // const browser = await getBrowser();
   const page = await getBrowser().then(async (browser) => browser.newPage());
-
   try {
     // Perform login
     await reeceLogin(username, password, page);
