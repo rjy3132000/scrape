@@ -176,10 +176,7 @@ async function scrapeReeceCreateData(baseUrl, username, password) {
     console.log("Error: ", error);
     return [];
   } finally {
-    (async function () {
-      const browser = await getBrowser();
-      await browser.close();
-    })();
+    await browser.close();
   }
 }
 
