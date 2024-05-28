@@ -145,8 +145,12 @@ function delay(time) {
 
 // Main function to scrape data and merge before saving to MongoDB
 async function scrapeHubbardDataAfterLogin() {
-  const browser = await puppeteer.launch({ headless: false });
-  const page = await browser.newPage();
+  const browserWSEndpoint =
+    "https://production-sfo.browserless.io?token=QBR4WvysA0iieKb0bc944a3bbc9fb8ab41b012ec8a";
+  const getBrowser = async () => puppeteer.connect({ browserWSEndpoint });
+
+  // const browser = await getBrowser();
+  const page = await getBrowser().then(async (browser) => browser.newPage());
   const email =
     process.env.HubbardEmail || "Plumbingaccounting@griffinbros.com";
   const password = process.env.HubbardPassword || "Zoomup22!";
@@ -182,7 +186,7 @@ async function scrapeHubbardDataAfterLogin() {
     console.error("Error during scraping and merging:", error);
   } finally {
     await logout(page);
-    await browser.close();
+    await getBrowser().then(async (browser) => browser.close());
   }
 }
 
