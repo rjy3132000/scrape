@@ -4,7 +4,8 @@ const { productRecordsSaveInDB } = require("../utlis/saveProductData");
 
 // Function to log in to the website
 async function login(email, password, page) {
-  const loginUrl = process.env.HubbardLoginURL || "https://www.hubbardsupplyhouse.com/login";
+  const loginUrl =
+    process.env.HubbardLoginURL || "https://www.hubbardsupplyhouse.com/login";
   try {
     await page.goto(loginUrl, {
       waitUntil: "domcontentloaded",
@@ -27,7 +28,8 @@ async function login(email, password, page) {
 
 // Function to log out from the website
 async function logout(page) {
-  const logoutUrl = process.env.HubbardLogoutURL ||  "https://www.hubbardsupplyhouse.com/logout";
+  const logoutUrl =
+    process.env.HubbardLogoutURL || "https://www.hubbardsupplyhouse.com/logout";
   try {
     await page.goto(logoutUrl, {
       waitUntil: "domcontentloaded",
@@ -151,11 +153,18 @@ function delay(time) {
 
 // Main function to scrape data and merge before saving to MongoDB
 async function scrapeHubbardDataAfterLogin() {
-  const browser = await puppeteer.launch({ headless: false });
-  const page = await browser.newPage();
-  const email = process.env.HubbardEmail ||  "Plumbingaccounting@griffinbros.com";
+  const browserWSEndpoint =
+    "https://production-sfo.browserless.io?token=QBR4WvysA0iieKb0bc944a3bbc9fb8ab41b012ec8a";
+  const getBrowser = async () => puppeteer.connect({ browserWSEndpoint });
+
+  // const browser = await getBrowser();
+  const page = await getBrowser().then(async (browser) => browser.newPage());
+
+  const email =
+    process.env.HubbardEmail || "Plumbingaccounting@griffinbros.com";
   const password = process.env.HubbardPassword || "Zoomup22!";
-  const baseUrl = process.env.HubbardBaseURL || "https://www.hubbardsupplyhouse.com/";
+  const baseUrl =
+    process.env.HubbardBaseURL || "https://www.hubbardsupplyhouse.com/";
   const categoryPaths = [
     "residential-electric",
     "residential-gas",
@@ -186,7 +195,7 @@ async function scrapeHubbardDataAfterLogin() {
     console.error("Error during scraping and merging:", error);
   } finally {
     await logout(page);
-    await browser.close();
+    await getBrowser().then(async (browser) => browser.close());
   }
 }
 
