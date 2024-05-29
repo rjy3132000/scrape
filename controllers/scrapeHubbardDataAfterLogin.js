@@ -7,17 +7,23 @@ async function login(email, password, page) {
   const loginUrl =
     process.env.HubbardLoginURL || "https://www.hubbardsupplyhouse.com/login";
   try {
-    await page.goto(loginUrl, {
-      waitUntil: "domcontentloaded",
-    });
+    console.log("Navigating to login page...");
+    await page.goto(loginUrl, { waitUntil: "domcontentloaded" });
+
+    console.log("Entering email and password...");
     await page.type('input[name="email"]', email);
     await page.type('input[name="password"]', password);
-    await page.click(
-      'div[class="form-group  login-submit"] > button[type="submit"]'
-    );
-    await page.waitForNavigation({
-      waitUntil: "domcontentloaded",
+
+    console.log("Submitting login form...");
+    await page.evaluate(() => {
+      const form = document.querySelector("form.auth-form.login-form");
+      form.submit();
     });
+
+    console.log("Waiting for navigation after login...");
+    await page.waitForNavigation({ waitUntil: "domcontentloaded" });
+
+    console.log("Login successful");
   } catch (error) {
     console.error("Error logging in: ", error);
     throw error;
