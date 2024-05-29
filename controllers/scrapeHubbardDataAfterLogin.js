@@ -9,13 +9,17 @@ async function login(email, password, page) {
   try {
     await page.goto(loginUrl, {
       waitUntil: "domcontentloaded",
+      timeout: 60000,
     });
     await page.type('input[name="email"]', email);
     await page.type('input[name="password"]', password);
     await page.click(
       'div[class="form-group  login-submit"] > button[type="submit"]'
     );
-    await page.waitForNavigation({ waitUntil: "domcontentloaded" });
+    await page.waitForNavigation({
+      waitUntil: "domcontentloaded",
+      timeout: 60000,
+    });
   } catch (error) {
     console.error("Error logging in: ", error);
     throw error;
@@ -27,7 +31,10 @@ async function logout(page) {
   const logoutUrl =
     process.env.HubbardLogoutURL || "https://www.hubbardsupplyhouse.com/logout";
   try {
-    await page.goto(logoutUrl, { waitUntil: "domcontentloaded" });
+    await page.goto(logoutUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: 60000,
+    });
     console.log("Logout successful");
   } catch (error) {
     console.error("Error logging out: ", error);
@@ -128,6 +135,7 @@ async function scrapeSearchResults(page, url) {
         await nextPageButton.click();
         await page.waitForNavigation({
           waitUntil: "domcontentloaded",
+          timeout: 60000,
         });
         await new Promise((resolve) => setTimeout(resolve, 5000));
       }
@@ -145,12 +153,14 @@ function delay(time) {
 
 // Main function to scrape data and merge before saving to MongoDB
 async function scrapeHubbardDataAfterLogin() {
+  console.log("scrapeHubbardDataAfterLogin===========");
   const browserWSEndpoint =
     "https://production-sfo.browserless.io?token=QBR4WvysA0iieKb0bc944a3bbc9fb8ab41b012ec8a";
   const getBrowser = async () => puppeteer.connect({ browserWSEndpoint });
 
   // const browser = await getBrowser();
   const page = await getBrowser().then(async (browser) => browser.newPage());
+
   const email =
     process.env.HubbardEmail || "Plumbingaccounting@griffinbros.com";
   const password = process.env.HubbardPassword || "Zoomup22!";
@@ -171,8 +181,8 @@ async function scrapeHubbardDataAfterLogin() {
 
   try {
     await login(email, password, page);
-
-    const productDetails = [];
+    console.log("login==============");
+    let productDetails = [];
     for (const url of categoryUrls) {
       const searchResults = await scrapeSearchResults(page, url);
       if (searchResults) {
@@ -181,6 +191,36 @@ async function scrapeHubbardDataAfterLogin() {
       await delay(5000);
     }
     // Save or update mergeData to MongoDB
+
+    const scrapeLiveInventoryResult = await scrapeLiveInventory();
+
+    const scrapeLiveInventoryResultDict = scrapeLiveInventoryResult.reduce(
+      (acc, item) => {
+        acc[item.sku] = item;
+        return acc;
+      },
+      {}
+    );
+
+    // Iterate over productDetails and update the inventory information
+    for (let i = 0; i < productDetails.length; i++) {
+      const sku = productDetails[i]["productSku"];
+      if (scrapeLiveInventoryResultDict[sku]) {
+        productDetails[i]["inventory"] =
+          scrapeLiveInventoryResultDict[sku]["inventory"];
+        productDetails[i]["inventory_before_transform"] =
+          scrapeLiveInventoryResultDict[sku]["inventory_before_transform"];
+      }
+    }
+
+    console.log("productDetails===0========", productDetails[0]);
+    console.log(
+      "productDetails===last record========",
+      productDetails[productDetails.length - 1]
+    );
+
+    console.log("productDetails===========", productDetails.length);
+
     return productDetails;
   } catch (error) {
     console.error("Error during scraping and merging:", error);
@@ -190,8 +230,141 @@ async function scrapeHubbardDataAfterLogin() {
   }
 }
 
+async function scrapeLiveInventory() {
+  const categoryPaths = [
+    "/residential-electric",
+    "/residential-gas",
+    "/commercial-electric",
+    "/commercial-gas",
+    "/tankless--3",
+    "/expansion-tanks--1",
+    "/tankless-heater-venting",
+    "/water-heater-parts-and-accessories",
+  ];
+  const baseUrl = "https://www.hubbardsupplyhouse.com";
+  const browserWSEndpoint =
+    "https://production-sfo.browserless.io?token=QBR4WvysA0iieKb0bc944a3bbc9fb8ab41b012ec8a";
+  const getBrowser = async () => puppeteer.connect({ browserWSEndpoint });
+
+  let allCapturedResponses = []; // Array to store all captured responses
+
+  try {
+    for (const categoryPath of categoryPaths) {
+      console.log("categoryPath=============", categoryPath);
+      const categoryUrl = baseUrl + categoryPath;
+      const page = await getBrowser().then(async (browser) =>
+        browser.newPage()
+      );
+
+      await page.setExtraHTTPHeaders({
+        "user-agent":
+          "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.131 Safari/537.36",
+        "upgrade-insecure-requests": "1",
+        accept:
+          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3",
+        "accept-encoding": "gzip, deflate, br",
+        "accept-language": "en-US,en;q=0.9,en;q=0.8",
+      });
+
+      await page.setRequestInterception(true);
+
+      const capturedResponses = [];
+
+      page.on("request", (request) => {
+        if (
+          request
+            .url()
+            .includes("https://www.hubbardsupplyhouse.com/ajax/live-inventory")
+        ) {
+          request.continue();
+        } else {
+          request.continue();
+        }
+      });
+
+      page.on("response", async (response) => {
+        if (
+          response
+            .url()
+            .includes("https://www.hubbardsupplyhouse.com/ajax/live-inventory")
+        ) {
+          try {
+            const text = await response.text();
+            const responseData = JSON.parse(text);
+
+            // Extract the data array from the response
+            const data = responseData.data;
+
+            if (Array.isArray(data)) {
+              data.forEach((item) => {
+                const inventoryBeforeTransform = item.inventory.map((i) => ({
+                  branch: i.branch,
+                  name: i.name,
+                  stock: i.stock,
+                }));
+                capturedResponses.push({
+                  sku: item.sku,
+                  inventory: item.inventory,
+                  inventory_before_transform: inventoryBeforeTransform,
+                });
+              });
+            } else {
+              console.error(
+                "Unexpected response format - data array not found"
+              );
+            }
+          } catch (error) {
+            console.error("Error parsing JSON response:", error);
+          }
+        }
+      });
+
+      await page.goto(categoryUrl, { waitUntil: "networkidle2", timeout: 0 });
+      await delay(5000); // Wait for 5 seconds
+
+      let hasNextPage = true;
+      while (hasNextPage) {
+        const nextPageButton = await page.$("ul.pagination li.next-page a");
+        hasNextPage = !!nextPageButton;
+
+        if (hasNextPage) {
+          await nextPageButton.click();
+          await page.waitForNavigation({
+            waitUntil: "networkidle2",
+            timeout: 0,
+          });
+          await delay(5000); // Wait for 5 seconds before processing the next page
+        }
+      }
+
+      // Close the page after scraping
+      await getBrowser().then(async (browser) => browser.close());
+
+      // Push captured responses of this category into the array
+      allCapturedResponses.push(...capturedResponses);
+    }
+  } catch (error) {
+    console.error("Error during scraping:", error);
+  } finally {
+    // Close the browser after scraping all categories
+    await getBrowser().then(async (browser) => browser.close());
+    console.log(
+      "allCapturedResponses==================",
+      allCapturedResponses[0]
+    );
+
+    console.log(
+      "allCapturedResponses==================",
+      allCapturedResponses.length
+    );
+    return allCapturedResponses;
+  }
+}
+
 const scrapeHubbardData = async (req, res) => {
   try {
+    console.log("inside scrapeHubbardData");
+
     const scrapData = await scrapeHubbardDataAfterLogin();
     const saveData = await productRecordsSaveInDB("hubbard", scrapData);
     if (saveData) {
