@@ -136,9 +136,7 @@ async function scrapeSearchResults(page, url) {
 
       if (hasNextPage) {
         await nextPageButton.click();
-        await page.waitForNavigation({
-          waitUntil: "domcontentloaded",
-        });
+        await page.waitForNavigation({ waitUntil: "domcontentloaded" });
         await new Promise((resolve) => setTimeout(resolve, 5000));
       }
     }
@@ -331,9 +329,7 @@ async function scrapeLiveInventory() {
 
         if (hasNextPage) {
           await nextPageButton.click();
-          await page.waitForNavigation({
-            waitUntil: "networkidle2",
-          });
+          await page.waitForNavigation({ waitUntil: "domcontentloaded" });
           await delay(5000); // Wait for 5 seconds before processing the next page
         }
       }
