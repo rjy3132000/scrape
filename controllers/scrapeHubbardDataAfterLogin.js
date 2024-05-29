@@ -9,7 +9,6 @@ async function login(email, password, page) {
   try {
     await page.goto(loginUrl, {
       waitUntil: "domcontentloaded",
-      timeout: 60000,
     });
     await page.type('input[name="email"]', email);
     await page.type('input[name="password"]', password);
@@ -18,7 +17,6 @@ async function login(email, password, page) {
     );
     await page.waitForNavigation({
       waitUntil: "domcontentloaded",
-      timeout: 60000,
     });
   } catch (error) {
     console.error("Error logging in: ", error);
@@ -33,7 +31,6 @@ async function logout(page) {
   try {
     await page.goto(logoutUrl, {
       waitUntil: "domcontentloaded",
-      timeout: 60000,
     });
     console.log("Logout successful");
   } catch (error) {
@@ -135,7 +132,6 @@ async function scrapeSearchResults(page, url) {
         await nextPageButton.click();
         await page.waitForNavigation({
           waitUntil: "domcontentloaded",
-          timeout: 60000,
         });
         await new Promise((resolve) => setTimeout(resolve, 5000));
       }
@@ -319,7 +315,7 @@ async function scrapeLiveInventory() {
         }
       });
 
-      await page.goto(categoryUrl, { waitUntil: "networkidle2", timeout: 0 });
+      await page.goto(categoryUrl, { waitUntil: "networkidle2" });
       await delay(5000); // Wait for 5 seconds
 
       let hasNextPage = true;
@@ -331,7 +327,6 @@ async function scrapeLiveInventory() {
           await nextPageButton.click();
           await page.waitForNavigation({
             waitUntil: "networkidle2",
-            timeout: 0,
           });
           await delay(5000); // Wait for 5 seconds before processing the next page
         }
